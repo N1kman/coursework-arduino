@@ -1,3 +1,8 @@
+//Гиль Никита Александрович
+//группа 150501
+//Микропроцессорное устройство контроля
+//параметров велосипеда
+
 //библиотека для ИК приемника
 #include <NecDecoder.h> 
 //библиотека для датчика температура
@@ -80,18 +85,55 @@
 #define have2Digit 100 //2 цифры
 
 //коды кнопок
-#define button_0 48
+//обнуление расстояния
+#define button_0 104
+//настройка диагонали колеса
 #define button_1 48
+//настройка диагонали колеса
 #define button_2 24
+//настройка диагонали колеса
 #define button_3 122
+//уменьшение контролируемой скорости
 #define button_minus 224
+//увеличение контролируемой скорости
 #define button_plus 168
+//контроль скорости
 #define button_pause 194
-#define button_ch1 2
-#define button_ch2 98
-#define button_ch3 34
-#define button_ch4 162
-#define button_ch5 226
+//переключение канала назад
+#define button_ch_minus 2
+//переключение канала вперед
+#define button_ch_plus 34
+//переключение изменения времени
+#define button_ch 98
+
+//максимальный день
+#define max_day 31
+//максимальный месяц
+#define max_month 12
+//максимальные минуты 
+#define max_minutes 59
+//максимальные часы
+#define max_hours 23
+//максимальный год
+#define max_year 2050
+//минимальный год
+#define min_year 2000
+
+//отключение изменения времени
+#define change_off 0
+//изменение дня 
+#define change_day 1
+//изменение месяца
+#define change_month 2
+//изменение года
+#define change_year 3
+//изменение минут
+#define change_minutes 4
+//изменение часов
+#define change_hours 5
+
+//флаг времени
+int flagTime = 0;
 
 //структура времени
 typedef struct timeStruct {
@@ -99,6 +141,12 @@ typedef struct timeStruct {
     int min;  //минуты
     int sec;  //секунды
 };
+
+int day;     //текущий день
+int month;   //текущий месяц
+int year;    //текущий код
+int minutes; //текущие минуты
+int hours;   //текущие часы
 
 //структура для хранения времени
 timeStruct tm;
@@ -156,8 +204,8 @@ volatile double allDist = 0;
 //расстояние за сегодня
 volatile double todayDist = 0;
 
-int day;    //день
-int month;  //месяц
+int currentDay;    //день
+int currentMonth;  //месяц
 
 //флаг очистки расстояний
 bool flagClearDist = false;
@@ -175,7 +223,114 @@ void irIsr() {
   //если доступно
   if (ir.available()) {
     //чтение значения кнопки
-    int value = ir.readCommand();  
+    int value = ir.readCommand(); 
+
+    //если нажата кнопка паузы и установлен флаг вывода времени
+    if(value == button_ch && flagOut == time) {
+      flagTime++;
+      if(flagTime > 5) {
+        flagTime = 0; //запрещение изменения времени
+      }
+    }
+
+    //если вывод времени 
+    if(flagOut == time && flagTime != 0) {
+      //обновление времени
+      clock.gettime();
+      //получение текущего дня
+      day = (int)clock.day;
+      //получение текущего месяца
+      month = (int)clock.month;
+      //получение текущего года
+      year = (int)clock.year;
+      //получение текущих минут
+      minutes = (int)clock.minutes;
+      //получение текущих часов
+      hours = (int)clock.Hours;
+      //кнопка увеличения
+      if(value == button_plus) {
+        //изменение дня
+        if(flagTime == 1) {
+          day++;            //увеличение дня
+          if(day > max_day) {
+            day = 1;        //установка минимума
+          }
+        }
+        //изменение месяца
+        if(flagTime == 2) {
+          month++;        //увеличение месяца
+          if(month > max_month) {
+            month = 1;    //установка минимума
+          }
+        }
+        //изменение года
+        if(flagTime == 3) {
+          year++;            //увеличение года
+          if(year > max_year) {
+            year = min_year; //установка минимума
+          }
+        }
+        //изменение минут
+        if(flagTime == 4) {
+          minutes++;         //увеличение минут
+          if(minutes > max_minutes) {
+            //установка минимума
+            minutes = 0;
+          }
+        }
+        //изменение часов
+        if(flagTime == 5) {
+          hours++;           //увеличение часов
+          if(hours > max_hours) {
+            //установка минимума
+            hours = 0;
+          }
+        }
+        //установка нового времени
+        clock.settime(0, minutes, hours, day, month, year);
+        //кнопка уменьшения
+      } else if(value == button_minus) {
+        //изменение дня
+        if(flagTime == 1) {
+          day--;            //уменьшение дня
+          if(day < 1) {
+            day = max_day;  //установка максимума
+          }
+        }
+        //изменение месяца
+        if(flagTime == 2) {
+          month--;            //уменьшение месяца
+          if(month < 1) {
+            month = max_month;//установка максимума
+          }
+        }
+        //изменение года
+        if(flagTime == 3) {
+          year--;            //уменьшение года
+          if(year < min_year) {
+            year = max_year; //установка максимума
+          }
+        }
+        //изменение минут
+        if(flagTime == 4) {
+          minutes--;         //уменьшение минут
+          if(minutes < 0) {
+            //установка максимума
+            minutes = max_minutes;
+          }
+        }
+        //изменение часов
+        if(flagTime == 5) {
+          hours--;           //уменьшение часов
+          if(hours < 0) {
+            //установка максимума
+            hours = max_hours;
+          }
+        }
+        //установка нового времени
+        clock.settime(0, minutes, hours, day, month, year);
+      }
+    }
     
     //если нажата кнопка 1 и установлен флаг вывода параметров скорости
     if(value == button_1 && flagOut == speedParams) { 
@@ -203,25 +358,20 @@ void irIsr() {
       speedControl++; //увеличение контролируемой скорости
     }
 
-    //если нажата кнопка канал1
-    if(value == button_ch1) {
-      flagOut = speedDir; //установить вывод скорости и направления
+    //если нажата кнопка переключение канала назад
+    if(value == button_ch_minus) {
+        flagOut--;
+        if(flagOut < 0) {
+          flagOut = 4;
+        }
     }
-    //если нажата кнопка канал2
-    if(value == button_ch2) {
-      flagOut = tempHum;   //установить вывод температуры и влажности
-    }
-    //если нажата кнопка канал3
-    if(value == button_ch3) {
-      flagOut = speedParams;//установить вывод параметров скорости
-    }
-    //если нажата кнопка канал4
-    if(value == button_ch4) {
-      flagOut = time;       //установить вывод времени
-    }
-    //если нажата кнопка канал5
-    if(value == button_ch5) {
-      flagOut = distance;   //установить вывод расстояний
+
+    //если нажата кнопка переключение канала вперед
+    if(value == button_ch_plus) {
+        flagOut++;
+        if(flagOut > 4) {
+          flagOut = 0;
+        }
     }
 
     //если нажата кнопка 0 и флаг вывода установлен на расстояние
@@ -382,6 +532,28 @@ void outTime() {
   }
   //вывод секунд
   lcd.print(tm.sec);   
+  //установка курсора в позицию 0 3
+  lcd.setCursor(0, 3);
+  lcd.print("CHANGE: "); 
+  //ничего не изменяемо в дате
+  if(flagTime == change_off) {
+    lcd.print("OFF");   //вывод сообщения "выключено"
+    lcd.print("    ");
+  } else if(flagTime == change_day) {
+    lcd.print("DAY");  //изменение дня
+    lcd.print("    ");
+  } else if(flagTime == change_month) {
+    lcd.print("MONTH");  //изменение месяца
+    lcd.print("  ");
+  } else if(flagTime == change_year) {
+    lcd.print("YEAR");  //изменение года
+    lcd.print("   ");
+  } else if(flagTime == change_minutes) {
+    lcd.print("MINUTES");  //изменение минут
+  } else if(flagTime == change_hours) {
+    lcd.print("HOURS");  //изменение часов
+    lcd.print("  ");
+  }
 }
 
 //вывод расстояний 
@@ -448,18 +620,16 @@ void setup() {
 
   //запуск работы с часами реального времени
   clock.begin();
-  //установка времени (при необходимости расскомментировать)
-  //clock.settime(0, 14, 18, 21, 11, 23, 2);
   //получение из памяти всего пути 
   EEPROM.get(addressAllDist, allDist);
   //получение из памяти пути за день
   EEPROM.get(addressTodayDist, todayDist);
   //получение дня последнего запуска
-  EEPROM.get(addressDay, day);
+  EEPROM.get(addressDay, currentDay);
   //получение месяца последнего запуска
-  EEPROM.get(addressMonth, month);
+  EEPROM.get(addressMonth, currentMonth);
   //если дни не совпадают
-  if(day != clock.day || month != clock.month) {
+  if(currentDay != clock.day || currentMonth != clock.month) {
     //обнуление расстояния за сегодня
     todayDist = 0;
     //запись в память расстояния, дня и месяца
